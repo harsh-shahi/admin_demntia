@@ -8,6 +8,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static("public"));
 
 
 // ================= HASH FUNCTION =================
@@ -58,7 +59,7 @@ mongoose.connect(process.env.MONGO_URI)
 // ================= ROUTES =================
 
 // 🔹 Signup
-app.post("/signup", async (req, res) => {
+app.post("/api/signup", async (req, res) => {
   try {
     const { name, dob, email } = req.body;
 
@@ -89,7 +90,7 @@ app.post("/signup", async (req, res) => {
 
 
 // 🔹 Login (generate hash internally)
-app.post("/login", async (req, res) => {
+app.post("/api/login", async (req, res) => {
   try {
     const { name, dob, email } = req.body;
 
@@ -117,7 +118,7 @@ app.post("/login", async (req, res) => {
 
 
 // 🔹 Add Session
-app.post("/add-session", async (req, res) => {
+app.post("/api/add-session", async (req, res) => {
   try {
     const { hashId, score, data } = req.body;
 
@@ -147,7 +148,7 @@ app.post("/add-session", async (req, res) => {
 
 
 // 🔹 Get User Data
-app.get("/user/:hashId", async (req, res) => {
+app.get("/api/user/:hashId", async (req, res) => {
   try {
     const { hashId } = req.params;
 
@@ -173,7 +174,7 @@ app.listen(PORT, () => {
 });
 
 // 🔹 ADMIN: Get all users
-app.get("/admin/users", async (req, res) => {
+app.get("/api/admin/users", async (req, res) => {
   try {
     const users = await User.find();
 

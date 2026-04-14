@@ -6,7 +6,7 @@
 
   <style>
     body {
-      font-family: Arial;
+      font-family: Arial, sans-serif;
       background: #f5f6fa;
       padding: 20px;
     }
@@ -33,22 +33,34 @@
       color: white;
     }
 
-    button {
-      margin: 20px 10px;
-      padding: 10px 20px;
-      cursor: pointer;
-      border: none;
-      background: #0984e3;
-      color: white;
-      border-radius: 5px;
-    }
-
-    button:disabled {
-      background: gray;
+    tr:nth-child(even) {
+      background: #f2f2f2;
     }
 
     .controls {
       text-align: center;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      border: none;
+      background: #0984e3;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: gray;
+      cursor: not-allowed;
+    }
+
+    #loading {
+      text-align: center;
+      font-size: 18px;
+      margin-top: 40px;
     }
   </style>
 </head>
@@ -56,7 +68,7 @@
 
 <h1>Admin Dashboard</h1>
 
-<div id="loading">Loading...</div>
+<div id="loading">Loading users...</div>
 
 <table id="userTable" style="display:none;">
   <thead>
@@ -72,12 +84,13 @@
 </table>
 
 <div class="controls">
-  <button onclick="prevPage()">Prev</button>
-  <button onclick="nextPage()">Next</button>
+  <button id="prevBtn" onclick="prevPage()">Prev</button>
+  <button id="nextBtn" onclick="nextPage()">Next</button>
 </div>
 
 <script>
   const BASE_URL = "http://localhost:5000/api";
+
   let users = [];
   let currentPage = 0;
   const limit = 5;
@@ -87,13 +100,15 @@
       const res = await fetch(`${BASE_URL}/admin/users`);
       const data = await res.json();
 
-      users = data.users;
+      users = data.users || [];
+
       document.getElementById("loading").style.display = "none";
       document.getElementById("userTable").style.display = "table";
 
       renderTable();
     } catch (err) {
       document.getElementById("loading").innerText = "Error loading users ❌";
+      console.error(err);
     }
   }
 
@@ -119,6 +134,8 @@
 
       tableBody.appendChild(row);
     });
+
+    updateButtons();
   }
 
   function nextPage() {
@@ -133,6 +150,12 @@
       currentPage--;
       renderTable();
     }
+  }
+
+  function updateButtons() {
+    document.getElementById("prevBtn").disabled = currentPage === 0;
+    document.getElementById("nextBtn").disabled =
+      (currentPage + 1) * limit >= users.length;
   }
 
   fetchUsers();
