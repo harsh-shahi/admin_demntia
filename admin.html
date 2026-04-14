@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Dashboard</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #f5f6fa;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      margin-top: 20px;
+    }
+
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+
+    th {
+      background: #2f3640;
+      color: white;
+    }
+
+    button {
+      margin: 20px 10px;
+      padding: 10px 20px;
+      cursor: pointer;
+      border: none;
+      background: #0984e3;
+      color: white;
+      border-radius: 5px;
+    }
+
+    button:disabled {
+      background: gray;
+    }
+
+    .controls {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Admin Dashboard</h1>
+
+<div id="loading">Loading...</div>
+
+<table id="userTable" style="display:none;">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Email</th>
+      <th>DOB</th>
+      <th>Hash ID</th>
+      <th>Sessions</th>
+    </tr>
+  </thead>
+  <tbody id="tableBody"></tbody>
+</table>
+
+<div class="controls">
+  <button onclick="prevPage()">Prev</button>
+  <button onclick="nextPage()">Next</button>
+</div>
+
+<script>
+  const BASE_URL = "http://localhost:5000/api";
+  let users = [];
+  let currentPage = 0;
+  const limit = 5;
+
+  async function fetchUsers() {
+    try {
+      const res = await fetch(`${BASE_URL}/admin/users`);
+      const data = await res.json();
+
+      users = data.users;
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("userTable").style.display = "table";
+
+      renderTable();
+    } catch (err) {
+      document.getElementById("loading").innerText = "Error loading users ❌";
+    }
+  }
+
+  function renderTable() {
+    const tableBody = document.getElementById("tableBody");
+    tableBody.innerHTML = "";
+
+    const start = currentPage * limit;
+    const end = start + limit;
+
+    const pageUsers = users.slice(start, end);
+
+    pageUsers.forEach(user => {
+      const row = document.createElement("tr");
+
+      row.innerHTML = `
+        <td>${user.user.name}</td>
+        <td>${user.user.email}</td>
+        <td>${user.user.dob}</td>
+        <td style="font-size:12px;">${user.hashId}</td>
+        <td>${user.sessions.length}</td>
+      `;
+
+      tableBody.appendChild(row);
+    });
+  }
+
+  function nextPage() {
+    if ((currentPage + 1) * limit < users.length) {
+      currentPage++;
+      renderTable();
+    }
+  }
+
+  function prevPage() {
+    if (currentPage > 0) {
+      currentPage--;
+      renderTable();
+    }
+  }
+
+  fetchUsers();
+</script>
+
+</body>
+</html>
