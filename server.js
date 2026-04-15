@@ -41,7 +41,7 @@ const userSchema = new mongoose.Schema({
 
   user: {
     name: String,
-    email: String,
+    email: { type: String, unique: true }, // 👈 ADD HERE
     dob: String
   },
 
@@ -64,25 +64,38 @@ mongoose.connect(process.env.MONGO_URI)
 // 🔹 Signup
 app.post("/api/signup", async (req, res) => {
   try {
-    const { name, dob, email } = req.body;
+    let { name, dob, email } = req.body;
 
     if (!name || !dob || !email) {
       return res.status(400).json({ message: "All fields required" });
     }
 
-    const hashId = generateHash(name, dob, email);
+    // 🔥 NORMALIZE INPUT
+    const cleanName = name.trim().toLowerCase();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanDob = dob.trim();
 
-    let user = await User.findOne({ hashId });
+    // 🔥 CHECK EXISTING USER BY EMAIL
+    let existingUser = await User.findOne({ "user.email": cleanEmail });
 
-    if (!user) {
-      user = new User({
-        hashId,
-        user: { name, dob, email },
-        sessions: []
-      });
-
-      await user.save();
+    if (existingUser) {
+      return res.json({ hashId: existingUser.hashId });
     }
+
+    // 🔥 GENERATE HASH
+    const hashId = generateHash(cleanName, cleanDob, cleanEmail);
+
+    const user = new User({
+      hashId,
+      user: {
+        name: cleanName,
+        email: cleanEmail,
+        dob: cleanDob
+      },
+      sessions: []
+    });
+
+    await user.save();
 
     res.json({ hashId });
 
@@ -95,13 +108,18 @@ app.post("/api/signup", async (req, res) => {
 // 🔹 Login (generate hash internally)
 app.post("/api/login", async (req, res) => {
   try {
-    const { name, dob, email } = req.body;
+    let { name, dob, email } = req.body;
 
     if (!name || !dob || !email) {
       return res.status(400).json({ message: "All fields required" });
     }
 
-    const hashId = generateHash(name, dob, email);
+    // 🔥 NORMALIZE SAME WAY
+    const cleanName = name.trim().toLowerCase();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanDob = dob.trim();
+
+    const hashId = generateHash(cleanName, cleanDob, cleanEmail);
 
     const user = await User.findOne({ hashId });
 
