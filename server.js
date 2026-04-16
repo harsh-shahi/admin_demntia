@@ -9,10 +9,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
+
+// ✅ UI route
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/public/admin.html");
 });
-
 
 // ================= HASH FUNCTION =================
 function generateHash(name, dob, email) {
@@ -27,7 +28,6 @@ function generateHash(name, dob, email) {
   return hash.toString(36).padStart(16, "0").slice(0, 16);
 }
 
-
 // ================= SCHEMA =================
 const sessionSchema = new mongoose.Schema({
   sessionId: String,
@@ -41,7 +41,7 @@ const userSchema = new mongoose.Schema({
 
   user: {
     name: String,
-    email: { type: String, unique: true }, // 👈 ADD HERE
+    email: { type: String, unique: true },
     dob: String
   },
 
@@ -52,17 +52,15 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model("User", userSchema);
 
-
 // ================= DB CONNECTION =================
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected ✅"))
   .catch(err => console.log("Mongo Error:", err));
 
-
 // ================= ROUTES =================
 
-// 🔹 Signup
-app.post("/api/signup", async (req, res) => {
+// 🔹 CREATE USER (SIGNUP)
+app.post("/api/users", async (req, res) => {
   try {
     let { name, dob, email } = req.body;
 
@@ -70,19 +68,16 @@ app.post("/api/signup", async (req, res) => {
       return res.status(400).json({ message: "All fields required" });
     }
 
-    // 🔥 NORMALIZE INPUT
     const cleanName = name.trim().toLowerCase();
     const cleanEmail = email.trim().toLowerCase();
     const cleanDob = dob.trim();
 
-    // 🔥 CHECK EXISTING USER BY EMAIL
     let existingUser = await User.findOne({ "user.email": cleanEmail });
 
     if (existingUser) {
       return res.json({ hashId: existingUser.hashId });
     }
 
-    // 🔥 GENERATE HASH
     const hashId = generateHash(cleanName, cleanDob, cleanEmail);
 
     const user = new User({
@@ -104,9 +99,8 @@ app.post("/api/signup", async (req, res) => {
   }
 });
 
-
-// 🔹 Login (generate hash internally)
-app.post("/api/login", async (req, res) => {
+// 🔹 LOGIN
+app.post("/api/users/login", async (req, res) => {
   try {
     let { name, dob, email } = req.body;
 
@@ -114,7 +108,6 @@ app.post("/api/login", async (req, res) => {
       return res.status(400).json({ message: "All fields required" });
     }
 
-    // 🔥 NORMALIZE SAME WAY
     const cleanName = name.trim().toLowerCase();
     const cleanEmail = email.trim().toLowerCase();
     const cleanDob = dob.trim();
@@ -127,25 +120,50 @@ app.post("/api/login", async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.json({
-      message: "Login successful",
-      hashId
-    });
+    res.json({ message: "Login successful", hashId });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-
-// 🔹 Add Session
-app.post("/api/add-session", async (req, res) => {
+// 🔹 GET USER
+app.get("/api/users/:hashId", async (req, res) => {
   try {
-    const { hashId, score, data } = req.body;
+    const { hashId } = req.params;
 
-    if (!hashId) {
-      return res.status(400).json({ message: "hashId required" });
+    const user = await User.findOne({ hashId });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
+
+    res.json(user);
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 🔹 DELETE USER
+app.delete("/api/users/:hashId", async (req, res) => {
+  try {
+    const { hashId } = req.params;
+
+    await User.deleteOne({ hashId });
+
+    res.json({ message: "User deleted" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 🔹 ADD SESSION
+app.post("/api/users/:hashId/sessions", async (req, res) => {
+  try {
+    const { hashId } = req.params;
+    const { score, data } = req.body;
 
     const sessionPrefix = process.env.SESSION_PREFIX || "sess_";
 
@@ -167,9 +185,8 @@ app.post("/api/add-session", async (req, res) => {
   }
 });
 
-
-// 🔹 Get User Data
-app.get("/api/user/:hashId", async (req, res) => {
+// 🔹 GET ALL SESSIONS
+app.get("/api/users/:hashId/sessions", async (req, res) => {
   try {
     const { hashId } = req.params;
 
@@ -179,22 +196,14 @@ app.get("/api/user/:hashId", async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.json(user);
+    res.json({ sessions: user.sessions });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-
-// ================= START SERVER =================
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} 🚀`);
-});
-
-// 🔹 ADMIN: Get all users
+// 🔹 ADMIN USERS
 app.get("/api/admin/users", async (req, res) => {
   try {
     const users = await User.find();
@@ -207,4 +216,34 @@ app.get("/api/admin/users", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// 🔹 ADMIN STATS
+app.get("/api/admin/stats", async (req, res) => {
+  try {
+    const users = await User.find();
+
+    const totalUsers = users.length;
+    const totalSessions = users.reduce(
+      (acc, u) => acc + u.sessions.length,
+      0
+    );
+
+    res.json({ totalUsers, totalSessions });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 🔹 HEALTH CHECK
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+// ================= START SERVER =================
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT} 🚀`);
 });
