@@ -247,3 +247,25 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
+
+// 🔹 Get Basic User Info (clean + optimized)
+app.get("/api/users/:hashId/basic", async (req, res) => {
+  try {
+    const { hashId } = req.params;
+
+    const user = await User.findOne({ hashId })
+      .select("user.name user.email -_id");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({
+      name: user.user.name,
+      email: user.user.email
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
